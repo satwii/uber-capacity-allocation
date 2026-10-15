@@ -32,6 +32,11 @@ MODEL_2 = "Model 2 – Goal Programming"
 LOC = stats.LOCATION_COLORS
 SER = stats.SERIES_COLORS
 
+# Streamlit >= 1.50 sizes elements with width="stretch"; older releases (e.g. Anaconda's 1.45)
+# only accept use_container_width=True.
+_ST_VERSION = tuple(int(x) for x in st.__version__.split(".")[:2])
+STRETCH = {"width": "stretch"} if _ST_VERSION >= (1, 50) else {"use_container_width": True}
+
 st.set_page_config(page_title="Uber Capacity Allocation", page_icon="🚕", layout="wide")
 
 
@@ -89,9 +94,9 @@ def parse_number_list(text: str, scale: float = 1.0) -> list[float]:
 
 
 def show_chart_and_table(fig: go.Figure, table: pd.DataFrame, key: str):
-    st.plotly_chart(fig, width="stretch", key=f"chart_{key}")
+    st.plotly_chart(fig, **STRETCH, key=f"chart_{key}")
     with st.expander("Show data table"):
-        st.dataframe(table, width="stretch", hide_index=True)
+        st.dataframe(table, **STRETCH, hide_index=True)
 
 
 # Model parameters live in plain session-state keys (not widget keys): Streamlit drops the
@@ -266,11 +271,11 @@ with tab_data:
                        f"{len(requests):,} requests, {len(data.periods)} hourly planning periods, "
                        f"estimated productivity q = {data.q:.3f} rides per driver-hour.")
             st.markdown("**Raw requests (first 200 rows)**")
-            st.dataframe(requests.head(200), width="stretch", hide_index=True)
+            st.dataframe(requests.head(200), **STRETCH, hide_index=True)
             st.markdown("**Planning table** – demand `D`, active drivers `N` and historical completions per period")
             st.dataframe(data.periods.rename(columns={
                 "D_C": "City demand", "D_A": "Airport demand", "N": "Active drivers",
-                "hist_C": "City completed", "hist_A": "Airport completed"}), width="stretch", hide_index=True)
+                "hist_C": "City completed", "hist_A": "Airport completed"}), **STRETCH, hide_index=True)
         else:
             st.info("Upload a CSV or click **Use bundled sample dataset** to begin.")
     else:
@@ -298,7 +303,7 @@ with tab_data:
                                value=st.session_state.get("manual_q", DEFAULT_Q), step=0.05, format="%.3f")
         st.session_state["manual_q"] = q_in
         edited = st.data_editor(
-            st.session_state["manual_seed"], num_rows="dynamic", width="stretch", hide_index=True,
+            st.session_state["manual_seed"], num_rows="dynamic", **STRETCH, hide_index=True,
             key=f"manual_editor_{st.session_state['manual_version']}",
             column_config={
                 "Period": st.column_config.TextColumn("Period", help="Any label, e.g. 09:00"),
@@ -335,11 +340,11 @@ with tab_stats:
             c[4].metric("Completed", f"{o['status_counts'].get('Trip Completed', 0):,}")
             c1, c2, c3 = st.columns(3)
             c1.markdown("**Requests by pickup point**")
-            c1.dataframe(pd.Series(o["pickup_counts"], name="Requests"), width="stretch")
+            c1.dataframe(pd.Series(o["pickup_counts"], name="Requests"), **STRETCH)
             c2.markdown("**Requests by status**")
-            c2.dataframe(pd.Series(o["status_counts"], name="Requests"), width="stretch")
+            c2.dataframe(pd.Series(o["status_counts"], name="Requests"), **STRETCH)
             c3.markdown("**Missing values** (expected: no driver when no car available; no drop when not completed)")
-            c3.dataframe(pd.Series(o["missing"], name="Missing"), width="stretch")
+            c3.dataframe(pd.Series(o["missing"], name="Missing"), **STRETCH)
         if "Trip outcome by pickup point" in chosen:
             show_chart_and_table(stats.fig_status_by_pickup(requests), stats.status_by_pickup(requests).reset_index(), "status")
         if "Hourly demand" in chosen:
@@ -358,7 +363,7 @@ with tab_stats:
         st.subheader("Summary of entered values")
         summary = data.periods[["D_C", "D_A", "N"]].rename(
             columns={"D_C": "City demand", "D_A": "Airport demand", "N": "Active drivers"}).describe().T
-        st.dataframe(summary, width="stretch")
+        st.dataframe(summary, **STRETCH)
         show_chart_and_table(stats.fig_drivers_vs_demand(data), data.periods, "dvc_manual")
 
 # ---------------------------------------------------------------- Optimisation tab
@@ -419,10 +424,10 @@ with tab_opt:
                 c[1].metric("G2 target shortfall share", pct(g["G2"]))
                 c[2].metric("G3 mean imbalance per period", pct(g["G3"]))
                 c[3].metric("Total shortfall below targets", f"{res.kpis['shortfall']:.1f} requests")
-            st.plotly_chart(fig_allocation(t), width="stretch", key="alloc")
-            st.plotly_chart(fig_rates(t, "Achieved service rate per period"), width="stretch", key="rates")
+            st.plotly_chart(fig_allocation(t), **STRETCH, key="alloc")
+            st.plotly_chart(fig_rates(t, "Achieved service rate per period"), **STRETCH, key="rates")
             st.markdown("**Results per period**")
-            st.dataframe(t, width="stretch", hide_index=True)
+            st.dataframe(t, **STRETCH, hide_index=True)
             st.download_button("Download results (CSV)", t.to_csv(index=False).encode(),
                                file_name="model1_ilp_results.csv" if model == MODEL_1 else "model2_gp_results.csv",
                                mime="text/csv")
@@ -452,9 +457,9 @@ with tab_sens:
         if df is not None:
             f1, f2 = fig_sweep(df, "alpha", "Capacity change", ".0%")
             c1, c2 = st.columns(2)
-            c1.plotly_chart(f1, width="stretch", key="cap1")
-            c2.plotly_chart(f2, width="stretch", key="cap2")
-            st.dataframe(sweep_table(df, "alpha", lambda a: f"{a:+.0%}"), width="stretch", hide_index=True)
+            c1.plotly_chart(f1, **STRETCH, key="cap1")
+            c2.plotly_chart(f2, **STRETCH, key="cap2")
+            st.dataframe(sweep_table(df, "alpha", lambda a: f"{a:+.0%}"), **STRETCH, hide_index=True)
 
         st.subheader("2. Driver productivity q")
         c1, c2, c3 = st.columns(3)
@@ -470,9 +475,9 @@ with tab_sens:
         if df is not None:
             f1, f2 = fig_sweep(df, "q", "Rides per driver-hour (q)")
             c1, c2 = st.columns(2)
-            c1.plotly_chart(f1, width="stretch", key="q1")
-            c2.plotly_chart(f2, width="stretch", key="q2")
-            st.dataframe(sweep_table(df, "q"), width="stretch", hide_index=True)
+            c1.plotly_chart(f1, **STRETCH, key="q1")
+            c2.plotly_chart(f2, **STRETCH, key="q2")
+            st.dataframe(sweep_table(df, "q"), **STRETCH, hide_index=True)
 
         st.subheader("3. Service-level target (Goal Programming)")
         tgt_text = st.text_input("Targets to test for both locations (%)", "50, 60, 70, 80, 90")
@@ -493,9 +498,9 @@ with tab_sens:
             f1.update_yaxes(title="Requests below target")
             _, f2 = fig_sweep(df, "target", "Service target", ".0%")
             c1, c2 = st.columns(2)
-            c1.plotly_chart(stats.style(f1, "Total shortfall below targets"), width="stretch", key="t1")
-            c2.plotly_chart(f2, width="stretch", key="t2")
-            st.dataframe(sweep_table(df, "target", lambda g: f"{g:.0%}"), width="stretch", hide_index=True)
+            c1.plotly_chart(stats.style(f1, "Total shortfall below targets"), **STRETCH, key="t1")
+            c2.plotly_chart(f2, **STRETCH, key="t2")
+            st.dataframe(sweep_table(df, "target", lambda g: f"{g:.0%}"), **STRETCH, hide_index=True)
 
         st.subheader("4. Shadow prices of driver capacity (LP relaxation of Model 1)")
         st.caption("The dual value of each period's driver-capacity constraint in the LP relaxation: the marginal "
@@ -553,7 +558,7 @@ with tab_cmp:
                              "Airport rate": pct(k["rate_A"]), "City–Airport gap": pct(k["rate_gap"]),
                              "Mean gap per period": pct(k["mean_period_gap"]),
                              "Utilisation": pct(k["utilisation"])})
-            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+            st.dataframe(pd.DataFrame(rows), **STRETCH, hide_index=True)
 
             names = list(results)
             fig = go.Figure()
@@ -567,8 +572,8 @@ with tab_cmp:
                                     text=[f"{results[n].kpis['unmet']:,}" for n in names], textposition="outside"))
             fig2.update_yaxes(title="Unmet requests")
             c1, c2 = st.columns(2)
-            c1.plotly_chart(stats.style(fig, "Service rate by location"), width="stretch", key="cmp1")
-            c2.plotly_chart(stats.style(fig2, "Unmet requests"), width="stretch", key="cmp2")
+            c1.plotly_chart(stats.style(fig, "Service rate by location"), **STRETCH, key="cmp1")
+            c2.plotly_chart(stats.style(fig2, "Unmet requests"), **STRETCH, key="cmp2")
             if hist is not None:
                 st.info("**Assumption:** capacity is estimated from drivers seen on completed *or cancelled* trips "
                         "(N), times productivity q. Cancellations are treated as capacity that could have served "

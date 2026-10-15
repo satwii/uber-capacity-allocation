@@ -1,7 +1,7 @@
 pandas>=2.2
 numpy>=1.26
 pulp==2.9.0
-streamlit>=1.38
+streamlit>=1.45
 plotly>=5.20
 pytest>=8
 highspy>=1.7
